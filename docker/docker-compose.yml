@@ -1,0 +1,15 @@
+services:
+  app:
+    container_name: spotibot
+    restart: unless-stopped
+    build:
+      context: .. # Set build context to parent directory
+      dockerfile: docker/Dockerfile # Path to Dockerfile from context
+    env_file:
+      - ../src/.env # Path to .env from docker-compose.yml location
+    volumes:
+      - ../src:/app/src # Path to src folder from docker-compose.yml location
+      - ../data:/app/data # Path to data folder from docker-compose.yml location
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=America/Detroit # Change to your local time zone
