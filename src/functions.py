@@ -33,7 +33,8 @@ def load_env_vars():
         "spotify_secret": os.getenv("spotify_secret"),
         "spotify_user_code": os.getenv("spotify_user_code"),
         "spotify_user_token": os.getenv("spotify_user_token"),
-        "spotify_user_refresh_token": os.getenv("spotify_user_refresh_token")
+        "spotify_user_refresh_token": os.getenv("spotify_user_refresh_token"),
+        "youtube_token": os.getenv("youtube_token")
     }
 
     return env_dict

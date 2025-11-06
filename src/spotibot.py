@@ -1,9 +1,9 @@
-from fileinput import filename
 from shutil import Error
-import spotify_helpers as spot
+import preview_helpers as prev
 import functions as func
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import json
 
 env_dict = func.load_env_vars()
 
@@ -21,15 +21,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Confirm that the user send a spotify link #
-    spotify_link = spot.parse_spotify_track_url(chat_text)
-    if not spotify_link['valid']:
+    link = prev.parse_track_url(env_dict, chat_text)
+    if not link['valid']:
         func.add_to_logs(f'User = {update.message.chat.id} in {chat_type}: {chat_text}')
         await update.message.reply_text("Not a valid spotify song link. Please send a link to a specific song from spotify")
         return
 
     # use track ID to get song preview #
-    spotify_link = spot.parse_spotify_track_url(chat_text)
-    track = spot.get_song_preview(env_dict, spotify_link['id'])
+    if link['valid']:
+        track = prev.get_song_preview(env_dict, link['id'])
+
 
     # if there is no preview, send a message saying there is no preview #
     if track is None:
@@ -48,6 +49,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_thread_id=chat_thread_id,
     )
     func.delete_file(audio_file)
+
+    func.add_to_logs(f"Successfully Sent Preview of {filename}")
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     func.add_to_logs(f'Update: {update} caused error {context.error}')

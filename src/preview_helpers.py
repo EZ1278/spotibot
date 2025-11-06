@@ -2,6 +2,7 @@
 import base64
 import json
 from requests import post, get
+import time
 import re
 import functions as func
 
@@ -37,25 +38,34 @@ def refresh_user_token(client_id, client_secret, refresh_token):
 # SEARCH
 #############################################################################
 
-def parse_spotify_track_url(url):
+def parse_track_url(env_dict, url):
     # Pattern to extract only tracks
-    pattern = r'https?://open\.spotify\.com/track/([a-zA-Z0-9]+)'
+    spotify_pattern = r'https?://open\.spotify\.com/track/([a-zA-Z0-9]+)'
+    youtube_pattern = r'(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/|music\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})'
+
 
     # Use re.search() instead of re.match() to find it anywhere in the string
-    match = re.search(pattern, url)
+    spotify_match = re.search(spotify_pattern, url)
+    youtube_match = re.search(youtube_pattern, url)
 
-    if match:
+    if spotify_match:
         return {
             'valid': True,
-            'type': 'track',
-            'id': match.group(1),  # group(1) is the captured track ID
-            'full_url': match.group(0)  # group(0) is the entire matched URL
+            'type': 'spotify',
+            'id': spotify_match.group(1)  # group(1) is the captured track ID
+        }
+    elif youtube_match:
+        return {
+            'valid': True,
+            'type': 'youtube',
+            'id': convert_youtube_to_spotify(env_dict, youtube_match.group(1))  # group(1) is the captured track ID
         }
     return {'valid': False}
 
 def get_song_preview(env_dict, song_id):
 
     # Search Spotify for a preview url #
+
     client_id = env_dict["spotify_id"]
     client_secret = env_dict["spotify_secret"]
     refresh_token = env_dict["spotify_user_refresh_token"]
@@ -118,3 +128,72 @@ def get_song_preview(env_dict, song_id):
         pass
 
     return None
+
+def search_spotify_song(env_dict, track, artist, offset=0):
+    client_id = env_dict["spotify_id"]
+    client_secret = env_dict["spotify_secret"]
+    refresh_token = env_dict["spotify_user_refresh_token"]
+    token = refresh_user_token(client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
+
+    while token == False:
+        print("Retrying to refresh token in 1 second")
+        time.sleep(1)
+        token = refresh_user_token(client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
+
+
+    query = f"track:{track} artist:{artist}"
+    url = "https://api.spotify.com/v1/search"
+    params = {
+        'q':query,
+        'type': 'track',
+        'limit':1
+    }
+    headers = {
+        "Authorization": "Bearer "+token
+    }
+
+    result = get(url=url, params=params, headers=headers)
+    if(result.status_code != 200):
+        response = f"Could not find track: Error Code {result.status_code}"
+        print(response)
+        return 0
+
+    json_result = json.loads(result.content)
+    return json_result['tracks']['items'][0]['id']
+
+def parse_youtube_title(title, channel_title):
+    # Clean the title
+    title = title.replace("(Official Video)", "")
+    title = title.replace("(Official Music Video)", "")
+    title = title.replace("[Official Video]", "")
+    title = title.strip()
+
+    # Clean the artist/channel name
+    artist = channel_title.replace(" - Topic", "")
+    artist = artist.replace("VEVO", "")
+    artist = artist.strip()
+
+    # If title has " - ", split it
+    if " - " in title:
+        parts = title.split(" - ", 1)
+        # Use the split artist if it looks cleaner
+        return parts[0].strip(), parts[1].strip()
+
+    # Otherwise use channel name as artist
+    return artist, title
+
+def convert_youtube_to_spotify(env_dict, id):
+    youtube_token = env_dict['youtube_token']
+    url = f"https://www.googleapis.com/youtube/v3/videos?part=snippet,recordingDetails&id={id}&key={youtube_token}"
+
+    response = get(url=url)
+
+    google_json = response.json()
+
+    if 'items' in google_json and len(google_json['items']) > 0:
+        video = google_json['items'][0]
+
+        artist, track = parse_youtube_title(video['snippet']['title'], video['snippet']['channelTitle'])
+        return search_spotify_song(env_dict, track, artist)
+
+    print(json.dumps(google_json, indent=2))
