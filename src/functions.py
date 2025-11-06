@@ -66,13 +66,18 @@ def add_to_logs(text):
         f.write("\n")
 
 def download_url(filename, url):
-    filename = f"{get_data_filepath()}/{filename}"
     try:
         response = get(url)
         with open(filename, 'wb') as f:
             f.write(response.content)
-        print(f"Downloaded to {filename}")
+        add_to_logs(f"Downloaded to {filename}")
         return True
     except:
-        print("Download failed")
+        add_to_logs(f"Download to {filename} failed")
         return False
+
+def delete_file(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
+    else:
+        add_to_logs(f"{filename} doesn't exist")

@@ -1,5 +1,5 @@
 services:
-  app:
+  spotibot:
     container_name: spotibot
     restart: unless-stopped
     build:

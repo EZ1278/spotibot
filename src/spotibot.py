@@ -1,3 +1,4 @@
+from fileinput import filename
 from shutil import Error
 import spotify_helpers as spot
 import functions as func
@@ -35,14 +36,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         func.add_to_logs(f'User = {update.message.chat.id} in {chat_type}: {chat_text}')
         await update.message.reply_text("Sorry, there is no preview available for this track")
         return
-    caption=f"{track['name']} by: {track['artist']}"
-    print(caption)
+
+    # Send audio file to chat where message was sent #
+    filename=f"{track['name']} by {track['artist']}"
+    audio_file = f"{func.get_data_filepath()}/{track['name']}.mp3"
+    func.download_url(audio_file, track['preview_url'])
     await context.bot.send_audio(
         chat_id=chat_id,
-        audio=track['preview_url'],
+        filename=filename,
+        audio=audio_file,
         message_thread_id=chat_thread_id,
-        caption=caption
     )
+    func.delete_file(audio_file)
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     func.add_to_logs(f'Update: {update} caused error {context.error}')
