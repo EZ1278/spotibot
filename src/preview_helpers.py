@@ -12,6 +12,7 @@ import spotify_helpers as spot
 #############################################################################
 
 def parse_track_url(env_dict, url):
+    print("parsing url")
     # Pattern to extract only tracks
     spotify_pattern = r'https?://open\.spotify\.com/track/([a-zA-Z0-9]+)'
     youtube_pattern = r'(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/|music\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})'

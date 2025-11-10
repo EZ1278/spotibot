@@ -35,14 +35,16 @@ async def send_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Confirm that the user send a spotify link #
     link = prev.parse_track_url(env_dict, chat_text)
+    print("succesfully parsed url")
     if not link['valid']:
         func.add_to_logs(f'User = {update.message.chat.id} in {chat_type}: {chat_text}')
         await update.message.reply_text("Not a valid spotify song link. Please send a link to a specific song from spotify")
         return
 
     # use track ID to get song preview #
-    if link['valid']:
-        track = prev.get_song_preview(env_dict, link['id'])
+    print('finding song preview link')
+    track = prev.get_song_preview(env_dict, link['id'])
+    print('preview link complete')
 
 
     # if there is no preview, send a message saying there is no preview #
@@ -54,7 +56,10 @@ async def send_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Send audio file to chat where message was sent #
     filename=f"{track['name']} by {track['artist']}"
     audio_file = f"{func.get_data_dir()}/{track['name']}.mp3"
-    func.download_url(audio_file, track['preview_url'])
+
+    complete = func.download_url(audio_file, track['preview_url'])
+    if not complete:
+        await update.message.reply_text(f"Sorry, there is no preview available for {filename}")
     await context.bot.send_audio(
         chat_id=chat_id,
         filename=filename,
@@ -151,11 +156,18 @@ async def create_poll(context: ContextTypes.DEFAULT_TYPE):
     func.save_poll_id(poll)
 
     # Send previews of song with spotify links #
+    print("getting song previews")
     for id in ids:
         track = prev.get_song_preview(env_dict, id)
         filename=f"{track['name']} by {track['artist']}"
         audio_file = f"{func.get_data_dir()}/{track['name']}.mp3"
-        func.download_url(audio_file, track['preview_url'])
+        complete = func.download_url(audio_file, track['preview_url'])
+
+        if not complete:
+            message = f"{filename}: {spot.get_song_url(env_dict, id)}"
+            await update.message.reply_text(message)
+            return
+
         await context.bot.send_audio(
             chat_id=env_dict['chat_id'],
             filename=filename,
