@@ -5,34 +5,7 @@ from requests import post, get
 import time
 import re
 import functions as func
-
-###################################################
-# USER INFORMATION
-###################################################
-def refresh_user_token(client_id, client_secret, refresh_token):
-    auth_string = client_id +":"+client_secret
-    auth_bytes = auth_string.encode("utf-8")
-    auth_base64 = str(base64.b64encode(auth_bytes), "utf-8")
-
-    url = "https://accounts.spotify.com/api/token"
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Authorization": "Basic "+auth_base64,
-    }
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token
-    }
-
-    result = post(url, headers=headers, data=data)
-    if(result.status_code != 200):
-        response = f"Could not refresh token\nError Code: {result.status_code}"
-        func.add_to_logs(f"{response}+\n+{result.reason}\n{result.text}")
-        return False
-
-    json_result = json.loads(result.content)["access_token"]
-
-    return json_result
+import spotify_helpers as spot
 
 #############################################################################
 # SEARCH
@@ -69,7 +42,7 @@ def get_song_preview(env_dict, song_id):
     client_id = env_dict["spotify_id"]
     client_secret = env_dict["spotify_secret"]
     refresh_token = env_dict["spotify_user_refresh_token"]
-    token = refresh_user_token(client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
+    token = spot.refresh_user_token(client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
 
     url = f"https://api.spotify.com/v1/tracks/{song_id}"
     headers = {
@@ -129,38 +102,6 @@ def get_song_preview(env_dict, song_id):
 
     return None
 
-def search_spotify_song(env_dict, track, artist, offset=0):
-    client_id = env_dict["spotify_id"]
-    client_secret = env_dict["spotify_secret"]
-    refresh_token = env_dict["spotify_user_refresh_token"]
-    token = refresh_user_token(client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
-
-    while token == False:
-        print("Retrying to refresh token in 1 second")
-        time.sleep(1)
-        token = refresh_user_token(client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
-
-
-    query = f"track:{track} artist:{artist}"
-    url = "https://api.spotify.com/v1/search"
-    params = {
-        'q':query,
-        'type': 'track',
-        'limit':1
-    }
-    headers = {
-        "Authorization": "Bearer "+token
-    }
-
-    result = get(url=url, params=params, headers=headers)
-    if(result.status_code != 200):
-        response = f"Could not find track: Error Code {result.status_code}"
-        print(response)
-        return 0
-
-    json_result = json.loads(result.content)
-    return json_result['tracks']['items'][0]['id']
-
 def parse_youtube_title(title, channel_title):
     # Clean the title
     title = title.replace("(Official Video)", "")
@@ -194,6 +135,6 @@ def convert_youtube_to_spotify(env_dict, id):
         video = google_json['items'][0]
 
         artist, track = parse_youtube_title(video['snippet']['title'], video['snippet']['channelTitle'])
-        return search_spotify_song(env_dict, track, artist)
+        return spot.search_spotify_song(env_dict, track, artist)
 
     print(json.dumps(google_json, indent=2))
