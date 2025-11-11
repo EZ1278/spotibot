@@ -4,12 +4,20 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import preview_helpers as prev
 import functions as func
 import spotify_helpers as spot
-from datetime import timedelta
+from datetime import timedelta, datetime
 from time import sleep
 
 env_dict = func.load_env_vars()
+poll_tracking = {
+    'number_polls':0
+}
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id: str = update.message.from_user.id
+
+    if user_id != env_dict['admin_id']:
+        return
+
     # This will link the ranking to whatever chat the '/start' command was sent in #
     env_dict['chat_id'] = update.effective_chat.id
     env_dict['thread_id'] = update.effective_message.message_thread_id
@@ -27,6 +35,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text='Example: "/start_ranking https://open.spotify.com/playlist/playlist_id"'
             )
 
+async def change_ranking_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id: str = update.message.from_user.id
+    chat_text: str = update.message.text.split()[1]
+
+    if user_id != env_dict['admin_id']:
+        return
+
+    env_dict["open_poll_amount"]=int(chat_text)
+    func.save_env(env_dict)
+
+async def change_ranking_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id: str = update.message.from_user.id
+    chat_text: str = update.message.text.split()[1]
+    print(chat_text)
+
+    if user_id != env_dict['admin_id']:
+        return
+
+    env_dict["open_poll_time"]=int(chat_text)
+    func.save_env(env_dict)
+
 async def send_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_type: str = update.message.chat.type
     chat_id:   str = update.effective_chat.id
@@ -37,7 +66,7 @@ async def send_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     link = prev.parse_track_url(env_dict, chat_text)
     print("succesfully parsed url")
     if not link['valid']:
-        func.add_to_logs(f'User = {update.message.chat.id} in {chat_type}: {chat_text}')
+        func.add_to_logs(f'User = {update.effective_user.id} ({update.effective_user.username}) in {chat_type}: {chat_text} via {update.message.chat.id}')
         await update.message.reply_text("Not a valid spotify song link. Please send a link to a specific song from spotify")
         return
 
@@ -89,9 +118,10 @@ async def start_ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
         func.create_calibration_round(env_dict=env_dict, playlist_id=playlist_id, playlist_name=json_result['name'])
 
     # Send poll for first ranking #
-    await create_poll(context)
-    sleep(5)
-    await create_poll(context)
+    for i in range(env_dict['open_poll_amount']):
+        print(i)
+        await create_poll(context)
+        sleep(5)
 
 async def create_poll(context: ContextTypes.DEFAULT_TYPE):
     ranking_data = func.open_ranking(env_dict['current_ranking'])
@@ -134,7 +164,7 @@ async def create_poll(context: ContextTypes.DEFAULT_TYPE):
 
     job_queue.run_once(
             close_poll,
-            when=timedelta(minutes=1440),
+            when=timedelta(hours=env_dict['open_poll_time']),
             data={
                 'chat_id': env_dict['chat_id'],
                 'thread_id': env_dict['thread_id'],
@@ -149,11 +179,15 @@ async def create_poll(context: ContextTypes.DEFAULT_TYPE):
     poll = {
         message.poll.id: {
             'ids':ids,
-            'message_id':message.message_id
+            'message_id':message.message_id,
+            'start_date': str(datetime.now()),
+            'current_round': current_round
         }
     }
     print('saving poll')
     func.save_poll_id(poll)
+    poll_tracking['number_polls'] += 1
+    print(poll_tracking['number_polls'])
 
     # Send previews of song with spotify links #
     print("getting song previews")
@@ -180,6 +214,7 @@ async def create_poll(context: ContextTypes.DEFAULT_TYPE):
 async def close_poll(context: ContextTypes.DEFAULT_TYPE):
     job_data = context.job.data
     open_polls = func.get_open_polls()
+    poll_tracking['number_polls'] -= 1
     try:
         # Stop the poll #
         ranking_poll = await context.bot.stop_poll(
@@ -196,60 +231,85 @@ async def close_poll(context: ContextTypes.DEFAULT_TYPE):
             func.write_results(ids[0], ids[1], env_dict, job_data['current_round'])
         elif results[0].voter_count < results[1].voter_count:
             func.write_results(ids[1], ids[0], env_dict, job_data['current_round'])
-
         # Create else statement to handle a tie #
 
 
-        # Create another poll #
-        await create_poll(context)
-
     except Exception as e:
         print(f"Error closing poll: {e}")
-        await create_poll(context)
+
+    print(poll_tracking['number_polls'])
+
+    # Only create a new poll if there is space for a new poll #
+    # IE: calibration > current
+    if env_dict['open_poll_amount'] > poll_tracking['number_polls']:
+        for i in range(env_dict['open_poll_amount']-poll_tracking['number_polls']):
+            await create_poll(context)
+            sleep(5)
+
 
 async def startup(context:ContextTypes.DEFAULT_TYPE):
 
+    print(poll_tracking['number_polls'])
     ranking_data = func.open_ranking(env_dict['current_ranking'])
     open_polls = func.get_open_polls()
     if not open_polls or not ranking_data:
-        # no current ranking
+        # no open polls #
+        func.add_to_logs("No open polls, starting bot")
         return
     current_round = ranking_data['current_round']
 
-
-    print(open_polls.items())
     for poll_id, poll_data in list(open_polls.items()):
     # Stop and Log all polls that exist before startup #
-        try:
-            # Stop the poll #
+        start_date = datetime.fromisoformat(poll_data['start_date'])
+        total_time_open = (datetime.now()-start_date).total_seconds() / 3600
+        print(total_time_open)
+        if total_time_open > env_dict['open_poll_time']:
+            open_polls.pop(poll_id)
+            func.delete_poll_id(open_polls)
+            print("poll removed")
+            try:
+                # Stop the poll #
 
-            ranking_poll = await context.bot.stop_poll(
-                chat_id=env_dict['chat_id'],
-                message_id=poll_data['message_id']
-            )
+                ranking_poll = await context.bot.stop_poll(
+                    chat_id=env_dict['chat_id'],
+                    message_id=poll_data['message_id']
+                )
 
-            # Determine Winner #
-            results = ranking_poll.options
+                # Determine Winner #
+                results = ranking_poll.options
 
-            ids = poll_data['ids']
-            if results[0].voter_count > results[1].voter_count:
-                func.write_results(ids[0], ids[1], env_dict, current_round)
-            elif results[0].voter_count < results[1].voter_count:
-                func.write_results(ids[1], ids[0], env_dict, current_round)
+                ids = poll_data['ids']
+                if results[0].voter_count > results[1].voter_count:
+                    func.write_results(ids[0], ids[1], env_dict, current_round)
+                elif results[0].voter_count < results[1].voter_count:
+                    func.write_results(ids[1], ids[0], env_dict, current_round)
 
-            # Create else statement to handle a tie #
+                # Create else statement to handle a tie #
 
-        except Exception as e:
-            print(f"Error closing poll: {e}")
+            except Exception as e:
+                print(f"Error closing poll: {e}")
 
-    open_polls.clear()
-    func.delete_poll_id(open_polls)
-
-    # Create new polls #
-    # Create another poll #
-    await create_poll(context)
-    sleep(5)
-    await create_poll(context)
+            # Create a poll as replacement #
+            await create_poll(context)
+        else:
+            # Restoring the timer on polls that already exist #
+            time_remaining = env_dict['open_poll_time'] - total_time_open
+            print(time_remaining)
+            context.job_queue.run_once(
+                            close_poll,
+                            when=timedelta(hours=time_remaining),
+                            data={
+                                'chat_id': env_dict['chat_id'],
+                                'thread_id': env_dict['thread_id'],
+                                'message_id': poll_data['message_id'],
+                                'poll_id': poll_id,
+                                'current_round': poll_data['current_round']
+                            },
+                            name=f"close_poll_{poll_id}"
+                        )
+            poll_tracking['number_polls'] += 1
+            print(poll_tracking['number_polls'])
+        sleep(5)
 
 async def post_init(application: Application):
     print("Running startup tasks...")
@@ -268,6 +328,9 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(CommandHandler('start_ranking', start_ranking))
     app.add_handler(CommandHandler('send_preview', send_preview))
+    app.add_handler(CommandHandler('change_ranking_amount', change_ranking_amount))
+    app.add_handler(CommandHandler('change_ranking_time', change_ranking_time))
+
     # Add command for user to sent preview #
 
     # Errors

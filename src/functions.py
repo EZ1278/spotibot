@@ -41,7 +41,9 @@ def load_env_vars():
         "chat_id": os.getenv("chat_id"),
         "thread_id":os.getenv("thread_id"),
         "admin_id":int(os.getenv("admin_id")),
-        "current_ranking":os.getenv("current_ranking")
+        "current_ranking":os.getenv("current_ranking"),
+        "open_poll_time":int(os.getenv("open_poll_time")),
+        "open_poll_amount":int(os.getenv("open_poll_amount"))
     }
 
     return env_dict
