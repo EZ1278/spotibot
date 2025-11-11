@@ -89,6 +89,7 @@ async def send_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     complete = func.download_url(audio_file, track['preview_url'])
     if not complete:
         await update.message.reply_text(f"Sorry, there is no preview available for {filename}")
+        return
     await context.bot.send_audio(
         chat_id=chat_id,
         filename=filename,
@@ -198,18 +199,21 @@ async def create_poll(context: ContextTypes.DEFAULT_TYPE):
         complete = func.download_url(audio_file, track['preview_url'])
 
         if not complete:
-            message = f"{filename}: {spot.get_song_url(env_dict, id)}"
-            await update.message.reply_text(message)
-            return
-
-        await context.bot.send_audio(
-            chat_id=env_dict['chat_id'],
-            filename=filename,
-            audio=audio_file,
-            message_thread_id=env_dict['thread_id'],
-            caption=spot.get_song_url(env_dict, id)
-        )
-        func.delete_file(audio_file)
+            text = f"Sorry, there is no preview available for {filename}\n - {spot.get_song_url(env_dict, id)}"
+            await context.bot.sendMessage(
+                chat_id=env_dict['chat_id'],
+                message_thread_id=env_dict['thread_id'],
+                text=text
+            )
+        else:
+            await context.bot.send_audio(
+                chat_id=env_dict['chat_id'],
+                filename=filename,
+                audio=audio_file,
+                message_thread_id=env_dict['thread_id'],
+                caption=spot.get_song_url(env_dict, id)
+            )
+            func.delete_file(audio_file)
 
 async def close_poll(context: ContextTypes.DEFAULT_TYPE):
     job_data = context.job.data
