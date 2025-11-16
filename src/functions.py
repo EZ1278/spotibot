@@ -71,26 +71,29 @@ def add_to_logs(text):
 
     with open(file_name, "a") as f:
         f.write("\n")
-        f.write(f"Date: {datetime.now().date()}\n")
         f.write(text)
-        f.write("\n")
 
 def download_url(filename, url):
     try:
-        response = get(url)
+        result = get(url)
         with open(filename, 'wb') as f:
-            f.write(response.content)
-        add_to_logs(f"Downloaded to {filename}")
+            f.write(result.content)
+        response = f"[{datetime.now()}] [SUCCESS] Downloaded {filename} via:\n\t{url}"
+        add_to_logs(response)
         return True
     except:
-        add_to_logs(f"Download to {filename} failed")
+        response = f"[{datetime.now()}] [ERROR] Could not download {filename} via:\n\t{url}"
+        add_to_logs(response)
         return False
 
 def delete_file(filename):
     if os.path.exists(filename):
+        response = f"[{datetime.now()}] [SUCCESS] Deleted {filename}"
+        add_to_logs(response)
         os.remove(filename)
     else:
-        add_to_logs(f"{filename} doesn't exist")
+        response = f"[{datetime.now()}] [WARNING] {filename} does not exist"
+        add_to_logs(response)
 
 
 def select_matchup(database):
@@ -126,11 +129,15 @@ def create_next_round(database):
     return database
 
 def create_calibration_round(env_dict, playlist_id, playlist_name):
+    response = f"[{datetime.now()}] [INFO] Building calibration round for {playlist_name}"
+    add_to_logs(response)
 
     # Get Data from the playlist that the user selected #
-    print("Downloading spotify data")
+    response = f"[{datetime.now()}] [INFO] Downloading Spotify data for {playlist_name}"
+    add_to_logs(response)
     initial_data = spot.get_songs_in_playlist(env_dict=env_dict, playlist_id=playlist_id)
-    print("Download complete")
+    response = f"[{datetime.now()}] [INFO] Spotify data for {playlist_name} successfully downloaded"
+    add_to_logs(response)
     initial_data = initial_data.sort_values(by='Track')
 
     # Remove tracks without a valid ID #
@@ -191,6 +198,10 @@ def create_calibration_round(env_dict, playlist_id, playlist_name):
     ranking_header.update(round_0)
     ranking_header.update(round_1)
     save_choice(database=ranking_header)
+
+    response = f"[{datetime.now()}] [INFO] Calibration round for {playlist_name} successfully created"
+    add_to_logs(response)
+
     return ranking_header
 
 def save_choice(database):
@@ -200,7 +211,11 @@ def save_choice(database):
 
 def check_ranking(playlist_name):
     if os.path.exists(f"{get_data_dir()}/rankings/{playlist_name}.json"):
+        response = f"[{datetime.now()}] [INFO] {playlist_name} exists"
+        add_to_logs(response)
         return True
+    response = f"[{datetime.now()}] [INFO] {playlist_name} does not exist"
+    add_to_logs(response)
     return False
 
 def read_ranking_user_input(input, database):
@@ -263,6 +278,8 @@ def open_ranking(playlist_name):
     return data_dict
 
 def save_poll_id(poll_id):
+    response = f"[{datetime.now()}] [INFO] Saving poll info for {poll_id}"
+    add_to_logs(response)
     filepath = f"{get_data_dir()}/rankings/open_polls.json"
     if not os.path.exists(filepath):
         open_polls=poll_id
@@ -274,6 +291,8 @@ def save_poll_id(poll_id):
 
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(open_polls, f, indent=2)
+    response = f"[{datetime.now()}] [SUCCESS] Poll saved succesfully"
+    add_to_logs(response)
 
 def get_open_polls():
     filepath = f"{get_data_dir()}/rankings/open_polls.json"
