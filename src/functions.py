@@ -336,3 +336,27 @@ def write_results(winner_id, loser_id, env_dict, current_round):
     ranking_data[f'round_{current_round}']['losers']['added_by'].append(ranking_data[f'round_{current_round}']['matchups']['added_by'][loser_index])
 
     save_choice(ranking_data)
+
+def write_tie(ids, env_dict, current_round):
+    ranking_data = open_ranking(env_dict['current_ranking'])
+    song_1 = ranking_data[f'round_{current_round}']['matchups']['id'].index(ids[0])
+    song_2 = ranking_data[f'round_{current_round}']['matchups']['id'].index(ids[1])
+
+    # Move song 2 to the end of the current round
+    ranking_data[f'round_{current_round}']['matchups']['tracks'].append(ranking_data[f'round_{current_round}']['matchups']['tracks'].pop(song_2))
+    ranking_data[f'round_{current_round}']['matchups']['artists'].append(ranking_data[f'round_{current_round}']['matchups']['artists'].pop(song_2))
+    ranking_data[f'round_{current_round}']['matchups']['album'].append(ranking_data[f'round_{current_round}']['matchups']['album'].pop(song_2))
+    ranking_data[f'round_{current_round}']['matchups']['id'].append(ranking_data[f'round_{current_round}']['matchups']['id'].pop(song_2))
+    ranking_data[f'round_{current_round}']['matchups']['added_by'].append(ranking_data[f'round_{current_round}']['matchups']['added_by'].pop(song_2))
+
+    # Move song 1 to the end of the current round
+    ranking_data[f'round_{current_round}']['matchups']['tracks'].append(ranking_data[f'round_{current_round}']['matchups']['tracks'].pop(song_1))
+    ranking_data[f'round_{current_round}']['matchups']['artists'].append(ranking_data[f'round_{current_round}']['matchups']['artists'].pop(song_1))
+    ranking_data[f'round_{current_round}']['matchups']['album'].append(ranking_data[f'round_{current_round}']['matchups']['album'].pop(song_1))
+    ranking_data[f'round_{current_round}']['matchups']['id'].append(ranking_data[f'round_{current_round}']['matchups']['id'].pop(song_1))
+    ranking_data[f'round_{current_round}']['matchups']['added_by'].append(ranking_data[f'round_{current_round}']['matchups']['added_by'].pop(song_1))
+
+    ranking_data[f'round_{current_round}']['songs_remaining'] += 2
+    ranking_data[f'round_{current_round}']['current_ranking'] -= 2
+
+    save_choice(ranking_data)

@@ -280,8 +280,9 @@ async def close_poll(context: ContextTypes.DEFAULT_TYPE):
             func.write_results(ids[0], ids[1], env_dict, job_data['current_round'])
         elif results[0].voter_count < results[1].voter_count:
             func.write_results(ids[1], ids[0], env_dict, job_data['current_round'])
-
-        # Create else statement to handle a tie #
+        else:
+            print('tie')
+            func.write_tie(ids, env_dict, job_data['current_round'])
 
     except Exception as e:
         response = f"[{datetime.now()}] [ERROR] Problem closing poll\n\t{e}"

@@ -123,7 +123,7 @@ def get_song_preview(env_dict, song_id):
     func.add_to_logs(f"[{datetime.now()}] [ERROR] Could not find preview URL for:\n\t{track['name']} by: {artist}")
 
     return {
-        'name': track['trackName'],
+        'name': track['name'],
         'artist': artist,
         'preview_url': None
     }
