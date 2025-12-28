@@ -156,10 +156,8 @@ def convert_youtube_to_spotify(env_dict, id):
     response = get(url=url)
 
     google_json = response.json()
-
     if 'items' in google_json and len(google_json['items']) > 0:
         video = google_json['items'][0]
-
         artist, track = parse_youtube_title(video['snippet']['title'], video['snippet']['channelTitle'])
         return spot.search_spotify_song(env_dict, track, artist)
 

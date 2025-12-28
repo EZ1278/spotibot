@@ -128,7 +128,7 @@ def get_playlist(env_dict, playlist_id):
 #
 #
 #############################################################################
-def search_spotify_song(env_dict, track, artist, offset=0):
+def search_spotify_song(env_dict, track, artist=None, offset=0):
     client_id = env_dict["spotify_id"]
     client_secret = env_dict["spotify_secret"]
     refresh_token = env_dict["spotify_user_refresh_token"]
@@ -140,7 +140,10 @@ def search_spotify_song(env_dict, track, artist, offset=0):
         token = refresh_user_token(client_id=client_id, client_secret=client_secret, refresh_token=refresh_token)
 
 
-    query = f"track:{track} artist:{artist}"
+    query = f"track:{track} "
+
+    if artist:
+        query += f"artist:{artist}"
     url = "https://api.spotify.com/v1/search"
     params = {
         'q':query,
@@ -158,6 +161,12 @@ def search_spotify_song(env_dict, track, artist, offset=0):
         return 0
 
     json_result = json.loads(result.content)
+    # try a search of just the song title if nothing could be found
+    if len(json_result['tracks']['items']) == 0 and artist:
+        return search_spotify_song(env_dict, track)
+    elif len(json_result['tracks']['items']) == 0:
+        return False
+
     return json_result['tracks']['items'][0]['id']
 
 def get_song_url(env_dict, song_id):

@@ -82,7 +82,8 @@ async def send_preview(context: ContextTypes.DEFAULT_TYPE, update=None, id=None)
 
     # Confirm that the user send a spotify link #
     link = prev.parse_track_url(env_dict, chat_text)
-    if not link['valid'] and update:
+    print(link['valid'])
+    if (not link['valid'] or not link['id']) and update:
         func.add_to_logs(f'[{datetime.now()}] [ERROR] User = {update.effective_user.id} ({update.effective_user.username}) in {chat_type}: {chat_text} did not send a valid link')
         await send_message(context, "Not a valid spotify song link. Please send a link to a specific song from spotify")
         return
@@ -293,7 +294,7 @@ async def close_poll(context: ContextTypes.DEFAULT_TYPE):
     if env_dict['open_poll_amount'] > poll_tracking['number_polls']:
         for i in range(env_dict['open_poll_amount']-poll_tracking['number_polls']):
             await create_poll(context)
-            sleep(5)
+            sleep(300) # sleep for 5 min to allow for adequate time between polls
 
 ####################################################################################
 # UTILITY FUNCTIONS
@@ -305,13 +306,20 @@ async def startup(context:ContextTypes.DEFAULT_TYPE):
     func.add_to_logs(response)
     ranking_data = func.open_ranking(env_dict['current_ranking'])
     open_polls = func.get_open_polls()
-    if not open_polls or not ranking_data:
+    if open_polls == False or ranking_data == False:
         # no open polls #
         func.add_to_logs(f"[{datetime.now()}] [INFO] No open polls, starting bot")
         return
     func.add_to_logs(f"[{datetime.now()}] [INFO] Setting open polls to {len(open_polls)}")
     poll_tracking['number_polls'] = len(open_polls)
     current_schedule = 5 # minutes
+
+    if len(open_polls) == 0:
+        while poll_tracking['number_polls'] < env_dict['open_poll_amount']:
+            await create_poll(context)
+            sleep(current_schedule*60) # wait 5 minutes inbetween poll creation
+        return
+
     for poll_id, poll_data in list(open_polls.items()):
     # Stop and Log all polls that exist before startup #
         start_date = datetime.fromisoformat(poll_data['start_date'])
