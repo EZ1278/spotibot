@@ -4,8 +4,6 @@ import json
 from datetime import datetime
 from requests import get
 import spotify_helpers as spot
-import pandas as pd
-import shutil
 
 DATA_DEST = "/app/data"
 SRC_DEST = "/app/src"
@@ -57,17 +55,17 @@ def save_env(env_vars):
             f.write(f"{key}={value}\n")
 
 
-def create_logs():
-    file_name = f"{get_data_dir()}/output.log"
-
+def create_logs(file_name):
+    os.makedirs(os.path.dirname(file_name), exist_ok=True)
     with open(file_name, "w") as f:
         pass
 
 
 def add_to_logs(text):
-    file_name = f"{get_data_dir()}/output.log"
+    today = f"{datetime.now():%Y%m%d}"
+    file_name = f"{get_data_dir()}/logs/{today}.log"
     if not os.path.exists(file_name):
-        create_logs()
+        create_logs(file_name)
 
     with open(file_name, "a") as f:
         f.write("\n")

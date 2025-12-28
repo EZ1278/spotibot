@@ -195,10 +195,12 @@ async def create_poll(context: ContextTypes.DEFAULT_TYPE, update: Update = None)
     ranking_data[f'round_{current_round}']['current_ranking'] += 2
     ranking_data[f'round_{current_round}']['songs_remaining'] -= 2
 
-    options.append(f"{current_round_data['matchups']['tracks'][current_ranking]} by: {current_round_data['matchups']['artists'][current_ranking]}")
-    ids.append(current_round_data['matchups']['id'][current_ranking])
-    options.append(f"{current_round_data['matchups']['tracks'][current_ranking+1]} by: {current_round_data['matchups']['artists'][current_ranking+1]}")
-    ids.append(current_round_data['matchups']['id'][current_ranking+1])
+    i = 0
+    while i < 2:
+        option = f"{current_round_data['matchups']['tracks'][current_ranking+i]} by: {current_round_data['matchups']['artists'][current_ranking+i]}"
+        options.append(option[:100])
+        ids.append(current_round_data['matchups']['id'][current_ranking+i])
+        i += 1
 
     response = f"[{datetime.now()}] [INFO] Sending poll for {options[0]} vs {options[1]}"
     func.add_to_logs(response)
