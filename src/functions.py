@@ -35,13 +35,7 @@ def load_env_vars():
         "spotify_user_token": os.getenv("spotify_user_token"),
         "spotify_user_refresh_token": os.getenv("spotify_user_refresh_token"),
         "redirect_uri" : "http://127.0.0.1:5500",
-        "youtube_token": os.getenv("youtube_token"),
-        "chat_id": os.getenv("chat_id"),
-        "thread_id":os.getenv("thread_id"),
-        "admin_id":int(os.getenv("admin_id")),
-        "current_ranking":os.getenv("current_ranking"),
-        "open_poll_time":int(os.getenv("open_poll_time")),
-        "open_poll_amount":int(os.getenv("open_poll_amount"))
+        "youtube_token": os.getenv("youtube_token")
     }
 
     return env_dict

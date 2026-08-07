@@ -4,6 +4,7 @@ import json
 from requests import post, get
 import time
 import pandas as pd
+import functions as func
 
 ###################################################
 # USER INFORMATION
@@ -25,9 +26,9 @@ def refresh_user_token(client_id, client_secret, refresh_token):
     }
 
     result = post(url, headers=headers, data=data)
+    func.add_to_logs(f"[INFO] {result.status_code}")
+    func.add_to_logs(f"{result.reason}")
     if(result.status_code != 200):
-        response = f"Could not refresh token\nError Code: {result.status_code}"
-        print(response+"\n"+result.reason)
         return False
 
     json_result = json.loads(result.content)["access_token"]
